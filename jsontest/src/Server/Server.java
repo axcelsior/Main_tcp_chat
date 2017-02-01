@@ -1,6 +1,5 @@
 package Server;
 
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -65,14 +64,14 @@ public class Server {
 			// - Send a private message to a user using sendPrivateMessage()
 
 			try {
-				connectionSocket = m_socket.accept(); // Listens for input from client. Blocks until message received...
+				connectionSocket = m_socket.accept(); // Listens for input from
+														// client. Blocks until
+														// message received...
 				connection = new Connection(connectionSocket);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			
-			
 
 		} while (true);
 	}
@@ -104,6 +103,7 @@ public class Server {
 			itr.next().sendMessage(message, m_socket);
 		}
 	}
+
 	class Connection extends Thread {
 		ObjectInputStream in;
 		ObjectOutputStream out;
@@ -128,33 +128,34 @@ public class Server {
 		}
 
 		public void run() {
-
-			try {
-				message = (ChatMessage) in.readObject();
-			} catch (ClassNotFoundException e) {
-				// TODO Auto-generated catch block
-				System.out.println("Class not found: " + e.getMessage());
-			} catch (IOException e) {
-				System.out.println("IO Exception: " + e.getMessage());
-
-			}
-			
-			System.out.println(message.getCommand());
-			if (message.getCommand().equals("/connect")){
-				String[] splitedMessage = message.getParameters().split(" ");
-				String name = splitedMessage[0];
-				addClient(name);
-				System.out.println(name + " connected.");
-				ChatMessage response = new ChatMessage("/connected", "");
+			do {
 				try {
-					out.writeObject(response);
-				} catch (IOException e) {
+					message = (ChatMessage) in.readObject();
+				} catch (ClassNotFoundException e) {
 					// TODO Auto-generated catch block
-					e.printStackTrace();
+					System.out.println("Class not found: " + e.getMessage());
+				} catch (IOException e) {
+					System.out.println("IO Exception: " + e.getMessage());
+
 				}
-			}
+
+				System.out.println(message.getCommand());
+				if (message.getCommand().equals("/connect")) {
+					String[] splitedMessage = message.getParameters().split(" ");
+					String name = splitedMessage[0];
+					addClient(name);
+					System.out.println(name + " connected.");
+					ChatMessage response = new ChatMessage("/connected", "");
+					try {
+						out.writeObject(response);
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			} while (true);
 
 		}
+
 	}
 }
-
