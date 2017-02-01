@@ -13,30 +13,29 @@ import java.util.Random;
  * @author brom
  */
 public class ClientConnection {
-	
-	static double TRANSMISSION_FAILURE_RATE = 0.3;
-	
-	private final String m_name;
-	private final InetAddress m_address;
-	private final int m_port;
 
-	public ClientConnection(String name, InetAddress address, int port) {
+	static double TRANSMISSION_FAILURE_RATE = 0.3;
+
+	private final String m_name;
+
+	/*
+	 * private final InetAddress m_address; private final int m_port;
+	 */
+	public ClientConnection(String name) {
 		m_name = name;
-		m_address = address;
-		m_port = port;
 	}
 
 	public void sendMessage(String message, ServerSocket socket) {
-		
+
 		Random generator = new Random();
-    	double failure = generator.nextDouble();
-    	
-    	if (failure > TRANSMISSION_FAILURE_RATE){
-    		// TODO: send a message to this client using socket.
-    	} else {
-    		// Message got lost
-    	}
-		
+		double failure = generator.nextDouble();
+
+		if (failure > TRANSMISSION_FAILURE_RATE) {
+			// TODO: send a message to this client using socket.
+		} else {
+			// Message got lost
+		}
+
 	}
 
 	public boolean hasName(String testName) {

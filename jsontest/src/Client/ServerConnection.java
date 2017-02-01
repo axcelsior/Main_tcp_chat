@@ -8,10 +8,14 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Random;
+
+import Shared.ChatMessage;
 
 /**
  *
@@ -50,43 +54,45 @@ public class ServerConnection {
 		// * unmarshal response message to determine whether connection was
 		// successful
 		// * return false if connection failed (e.g., if user name was taken)
-		DataOutputStream oStream = null;
-		BufferedReader inStream = null;
-
+		ObjectOutputStream oStream = null;
+		ObjectInputStream iStream = null;
+		ChatMessage msg = new ChatMessage("/connect", name);
+		ChatMessage response = null;
 		try {
-			oStream = new DataOutputStream(m_socket.getOutputStream());
+			oStream = new ObjectOutputStream(m_socket.getOutputStream());
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
 		try {
-			inStream = new BufferedReader(new InputStreamReader(m_socket.getInputStream()));
+			iStream = new ObjectInputStream(m_socket.getInputStream());
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 
 		try {
-			oStream.writeBytes("Connection request" + '\n');
+			oStream.writeObject(msg);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		String response = null;
 		try {
-			response = inStream.readLine();
+			response = (ChatMessage) iStream.readObject();
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		if (response.equals("OK!")) {
-			System.out.println("Connection established!");
+		if (response.getCommand().equals("/connected")) {
+			System.out.println("Connection established to server at " + m_socket.getInetAddress() +":" + m_socket.getPort() );
 			return true;
 		} else
-			return false;
+			return true;
 	}
 
 	public String receiveChatMessage() {

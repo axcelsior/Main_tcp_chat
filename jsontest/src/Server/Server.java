@@ -1,10 +1,7 @@
 package Server;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
@@ -55,6 +52,8 @@ public class Server {
 	private void listenForClientMessages() {
 		System.out.println("Waiting for client messages... ");
 		String clientMessage = null;
+		Socket connectionSocket = null;
+		Connection connection = null;
 		do {
 			// TODO: Listen for client messages.
 			// On reception of message, do the following:
@@ -64,49 +63,21 @@ public class Server {
 			// response message to client detailing whether it was successful
 			// - Broadcast the message to all connected users using broadcast()
 			// - Send a private message to a user using sendPrivateMessage()
-			//jaskdhkjashdkjasd
-			Socket connectionSocket = null;
-			try {
-				connectionSocket = m_socket.accept();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			BufferedReader inStream = null;
-			try {
-				inStream = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			DataOutputStream oStream = null;
-			try {
-				oStream = new DataOutputStream(connectionSocket.getOutputStream());
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 
 			try {
-				clientMessage = inStream.readLine();
+				connectionSocket = m_socket.accept(); // Listens for input from client. Blocks until message received...
+				connection = new Connection(connectionSocket);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			if (clientMessage.equals("Connection request")) {
-				System.out.println("Connection request recieved!");
-				try {
-					oStream.writeBytes("OK!" + '\n');
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
+			
+			
 
 		} while (true);
 	}
 
-	public boolean addClient(String name, InetAddress address, int port) {
+	public boolean addClient(String name) {
 		ClientConnection c;
 		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
 			c = itr.next();
@@ -114,7 +85,7 @@ public class Server {
 				return false; // Already exists a client with this name
 			}
 		}
-		m_connectedClients.add(new ClientConnection(name, address, port));
+		m_connectedClients.add(new ClientConnection(name));
 		return true;
 	}
 
@@ -133,42 +104,57 @@ public class Server {
 			itr.next().sendMessage(message, m_socket);
 		}
 	}
+	class Connection extends Thread {
+		ObjectInputStream in;
+		ObjectOutputStream out;
+		Socket c_socket;
+		ChatMessage message;
+
+		public Connection(Socket aClientSocket) {
+			c_socket = aClientSocket;
+			try {
+				in = new ObjectInputStream(c_socket.getInputStream());
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			try {
+				out = new ObjectOutputStream(c_socket.getOutputStream());
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			this.start();
+		}
+
+		public void run() {
+
+			try {
+				message = (ChatMessage) in.readObject();
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				System.out.println("Class not found: " + e.getMessage());
+			} catch (IOException e) {
+				System.out.println("IO Exception: " + e.getMessage());
+
+			}
+			
+			System.out.println(message.getCommand());
+			if (message.getCommand().equals("/connect")){
+				String[] splitedMessage = message.getParameters().split(" ");
+				String name = splitedMessage[0];
+				addClient(name);
+				System.out.println(name + " connected.");
+				ChatMessage response = new ChatMessage("/connected", "");
+				try {
+					out.writeObject(response);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+
+		}
+	}
 }
 
-class Connection extends Thread {
-	ObjectInputStream in;
-	ObjectOutputStream out;
-	Socket c_socket;
-	ChatMessage message;
-
-	public Connection(Socket aClientSocket) {
-		c_socket = aClientSocket;
-		try {
-			in = new ObjectInputStream(c_socket.getInputStream());
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		try {
-			out = new ObjectOutputStream(c_socket.getOutputStream());
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		this.start();
-	}
-
-	public void run() {
-
-		try {
-			message = (ChatMessage) in.readObject();
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			System.out.println("Class not found: " + e.getMessage());
-		} catch (IOException e) {
-			System.out.println("IO Exception: " + e.getMessage());
-
-		}
-
-	}
-}
