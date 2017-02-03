@@ -50,7 +50,6 @@ public class Server {
 
 	private void listenForClientMessages() {
 		System.out.println("Waiting for client messages... ");
-		String clientMessage = null;
 		Socket connectionSocket = null;
 		Connection connection = null;
 		do {
@@ -76,7 +75,7 @@ public class Server {
 		} while (true);
 	}
 
-	public boolean addClient(String name) {
+	public boolean addClient(String name, ObjectOutputStream oStream) {
 		ClientConnection c;
 		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
 			c = itr.next();
@@ -84,23 +83,25 @@ public class Server {
 				return false; // Already exists a client with this name
 			}
 		}
-		m_connectedClients.add(new ClientConnection(name));
+		m_connectedClients.add(new ClientConnection(name,oStream));
 		return true;
 	}
 
-	public void sendPrivateMessage(String message, String name) {
+	public void sendPrivateMessage(ChatMessage message, String name) {
 		ClientConnection c;
 		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
 			c = itr.next();
 			if (c.hasName(name)) {
-				c.sendMessage(message, m_socket);
+				c.sendMessage(message);
+			}else{
+				System.out.println("Error! Name: "+ name + " not found.");
 			}
 		}
 	}
 
-	public void broadcast(String message) {
+	public void broadcast(ChatMessage message) {
 		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
-			itr.next().sendMessage(message, m_socket);
+			itr.next().sendMessage(message);
 		}
 	}
 
@@ -108,7 +109,7 @@ public class Server {
 		ObjectInputStream in;
 		ObjectOutputStream out;
 		Socket c_socket;
-		ChatMessage message;
+		ChatMessage recieved_message;
 
 		public Connection(Socket aClientSocket) {
 			c_socket = aClientSocket;
@@ -130,29 +131,55 @@ public class Server {
 		public void run() {
 			do {
 				try {
-					message = (ChatMessage) in.readObject();
+					recieved_message = (ChatMessage) in.readObject();
 				} catch (ClassNotFoundException e) {
 					// TODO Auto-generated catch block
 					System.out.println("Class not found: " + e.getMessage());
 				} catch (IOException e) {
 					System.out.println("IO Exception: " + e.getMessage());
-
 				}
 
-				System.out.println(message.getCommand());
-				if (message.getCommand().equals("/connect")) {
-					String[] splitedMessage = message.getParameters().split(" ");
-					String name = splitedMessage[0];
-					addClient(name);
-					System.out.println(name + " connected.");
-					ChatMessage response = new ChatMessage("/connected", "");
-					try {
-						out.writeObject(response);
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+				System.out.println(recieved_message.getCommand());
+				if (recieved_message.getCommand().startsWith("/")) {
+					/// COMMANDS
+					if (recieved_message.getCommand().equals("/connect")) {
+						String[] splitedMessage = recieved_message.getParameters().split(" ");
+						String name = splitedMessage[0];
+						addClient(name,out);
+						System.out.println(name + " connected.");
+						ChatMessage response = new ChatMessage("", "/connected", "");
+						try {
+							out.writeObject(response);
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
 					}
+					if (recieved_message.getCommand().equals("/test")){
+						System.out.println("Test command works!");
+						ChatMessage msg = new ChatMessage("Server", "", "You issued a test command!");
+						sendPrivateMessage(msg,recieved_message.getSender());
+					}
+					if (recieved_message.getCommand().equals("/tell")){
+						System.out.println(recieved_message.getParameters());
+						String[] splitedMessage = recieved_message.getParameters().split("\\s+");
+						String receiver = splitedMessage[1];
+						splitedMessage[1] = "";
+						String text = "[Private] from " + recieved_message.getSender() + ": " + String.join(" ", splitedMessage);
+						String selfText = "[Private] to " + receiver + ": " + String.join(" ", splitedMessage);
+						System.out.println("<>" + recieved_message.getSender() + "<>");
+						System.out.println("<>" + receiver + "<>");
+						ChatMessage msg = new ChatMessage(recieved_message.getSender(), "", text);
+						ChatMessage selfMsg = new ChatMessage(recieved_message.getSender(), "", selfText);
+						
+						
+						sendPrivateMessage(msg, receiver);
+						sendPrivateMessage(selfMsg,recieved_message.getSender());
+					}
+					
+					/// COMMANDS
 				}
+				
 			} while (true);
 
 		}

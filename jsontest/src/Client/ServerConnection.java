@@ -21,6 +21,7 @@ import Shared.ChatMessage;
  *
  * @author brom
  */
+
 public class ServerConnection {
 
 	// Artificial failure rate of 30% packet loss
@@ -29,6 +30,8 @@ public class ServerConnection {
 	private Socket m_socket = null;
 	private InetAddress m_serverAddress = null;
 	private int m_serverPort = -1;
+	private ObjectOutputStream oStream = null;
+	private ObjectInputStream iStream = null;
 
 	public ServerConnection(String hostName, int port) {
 		m_serverPort = port;
@@ -45,7 +48,6 @@ public class ServerConnection {
 		}
 
 	}
-
 	public boolean handshake(String name) {
 		// TODO:
 		// * marshal connection message containing user name
@@ -54,9 +56,8 @@ public class ServerConnection {
 		// * unmarshal response message to determine whether connection was
 		// successful
 		// * return false if connection failed (e.g., if user name was taken)
-		ObjectOutputStream oStream = null;
-		ObjectInputStream iStream = null;
-		ChatMessage msg = new ChatMessage("/connect", name);
+
+		ChatMessage msg = new ChatMessage(name, "/connect", name);
 		ChatMessage response = null;
 		try {
 			oStream = new ObjectOutputStream(m_socket.getOutputStream());
@@ -89,7 +90,8 @@ public class ServerConnection {
 		}
 
 		if (response.getCommand().equals("/connected")) {
-			System.out.println("Connection established to server at " + m_socket.getInetAddress() +":" + m_socket.getPort() );
+			System.out.println(
+					"Connection established to server at " + m_socket.getInetAddress() + ":" + m_socket.getPort());
 			return true;
 		} else
 			return true;
@@ -102,22 +104,60 @@ public class ServerConnection {
 
 		// Note that the main thread can block on receive here without
 		// problems, since the GUI runs in a separate thread
+		ChatMessage recieved_message = null;
+		String outPut = null;
+		try {
+			System.out.println("Client waiting for server messages...");
+			recieved_message = (ChatMessage) iStream.readObject();
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			System.out.println("Class not found: " + e.getMessage());
+		} catch (IOException e) {
+			System.out.println("IO Exception: " + e.getMessage());
+		}
+		System.out.println("Message recieved.");
+		String sender = recieved_message.getSender();
+		String command = recieved_message.getCommand();
+		String message = recieved_message.getParameters();
 
+		if (command.startsWith("/")) {
+			// Its a command
+		} else {
+			outPut = message;
+			System.out.println(message);
+		}
 		// Update to return message contents
-		return "";
+		return outPut;
 	}
 
 	public void sendChatMessage(String message) {
-		Random generator = new Random();
-		double failure = generator.nextDouble();
-
-		if (failure > TRANSMISSION_FAILURE_RATE) {
-			// TODO:
-			// * marshal message if necessary
-			// * send a chat message to the server
-		} else {
-			// Message got lost
+		ChatMessage msg = null;
+		int emptyEntries = 1;
+		String[] splited = message.split("\\s+");
+		String sender = splited[0];
+		String command = null;
+		splited[0] = "";
+		if (splited[1].startsWith("/")) {
+			command = splited[1];
+			splited[1] = "";
 		}
+		String outPut = String.join(" ", splited);
+		System.out.println("<>" +outPut + "<>");
+		if (splited.length > 1){
+			
+		}
+		
+		
+		msg = new ChatMessage(sender, command, outPut);
+
+		try {
+			oStream.writeObject(msg);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
 	}
 
 }
+
