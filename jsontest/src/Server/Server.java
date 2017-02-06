@@ -12,11 +12,14 @@ import java.io.ObjectOutputStream;
 //
 
 import java.net.*;
-//import java.io.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 
 import Shared.ChatMessage;
+
+enum serverGroup {
+	USER, ADMIN, MODERATOR
+}
 
 public class Server {
 
@@ -83,7 +86,7 @@ public class Server {
 				return false; // Already exists a client with this name
 			}
 		}
-		m_connectedClients.add(new ClientConnection(name,oStream));
+		m_connectedClients.add(new ClientConnection(name, oStream));
 		return true;
 	}
 
@@ -93,8 +96,8 @@ public class Server {
 			c = itr.next();
 			if (c.hasName(name)) {
 				c.sendMessage(message);
-			}else{
-				System.out.println("Error! Name: "+ name + " not found.");
+			} else {
+				System.out.println("Error! Name: " + name + " not found.");
 			}
 		}
 	}
@@ -105,11 +108,37 @@ public class Server {
 		}
 	}
 
+	private String getList() {
+		String returnValue = null;
+		String list = "Connected clients: ";
+		for (int i = 0; i < m_connectedClients.size(); i++) {
+			list += m_connectedClients.get(i).getName();
+			if (i <= m_connectedClients.size() - 2) {
+				list += ", ";
+			}
+		}
+		returnValue = list;
+		return returnValue;
+	}
+
+	public boolean removeClient(String name) {
+		ClientConnection c;
+		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
+			c = itr.next();
+			if (c.hasName(name)) {
+				m_connectedClients.remove(c);
+				return true; // successful
+			}
+		}
+		return false;
+	}
+
 	class Connection extends Thread {
 		ObjectInputStream in;
 		ObjectOutputStream out;
 		Socket c_socket;
 		ChatMessage recieved_message;
+		String senderName;
 
 		public Connection(Socket aClientSocket) {
 			c_socket = aClientSocket;
@@ -132,54 +161,89 @@ public class Server {
 			do {
 				try {
 					recieved_message = (ChatMessage) in.readObject();
+					senderName = recieved_message.getSender();
 				} catch (ClassNotFoundException e) {
 					// TODO Auto-generated catch block
 					System.out.println("Class not found: " + e.getMessage());
 				} catch (IOException e) {
-					System.out.println("IO Exception: " + e.getMessage());
+					// Disconnected
+					removeClient(senderName);
+					ChatMessage disconnectBroadcast = new ChatMessage(senderName, "",
+							"[Server] User " + senderName + " lost connection. ; - (");
+					broadcast(disconnectBroadcast);
+					System.out.println(" HÄR IO Exception: " + e.getMessage());
+					this.interrupt();
+					return;
 				}
 
 				System.out.println(recieved_message.getCommand());
-				if (recieved_message.getCommand().startsWith("/")) {
+				if (recieved_message.getCommand() != null && recieved_message.getCommand().startsWith("/")) {
 					/// COMMANDS
 					if (recieved_message.getCommand().equals("/connect")) {
 						String[] splitedMessage = recieved_message.getParameters().split(" ");
 						String name = splitedMessage[0];
-						addClient(name,out);
-						System.out.println(name + " connected.");
-						ChatMessage response = new ChatMessage("", "/connected", "");
-						try {
-							out.writeObject(response);
-						} catch (IOException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
+						if (addClient(name, out)){
+							System.out.println(name + " connected.");
+							ChatMessage response = new ChatMessage("", "/connected", "");
+							try {
+								out.writeObject(response);
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+							ChatMessage broadcastMsg = new ChatMessage("", "",
+									"[Server] User " + recieved_message.getSender() + " joined the chat!");
+							broadcast(broadcastMsg);
+						}else{
+							ChatMessage response = new ChatMessage("", "/disconnected", "");
+							try {
+								out.writeObject(response);
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
 						}
+						
+						
 					}
-					if (recieved_message.getCommand().equals("/test")){
+					if (recieved_message.getCommand().equals("/test")) {
 						System.out.println("Test command works!");
 						ChatMessage msg = new ChatMessage("Server", "", "You issued a test command!");
-						sendPrivateMessage(msg,recieved_message.getSender());
+						sendPrivateMessage(msg, recieved_message.getSender());
 					}
-					if (recieved_message.getCommand().equals("/tell")){
-						System.out.println(recieved_message.getParameters());
+					if (recieved_message.getCommand().equals("/tell")) {
+
 						String[] splitedMessage = recieved_message.getParameters().split("\\s+");
 						String receiver = splitedMessage[1];
 						splitedMessage[1] = "";
-						String text = "[Private] from " + recieved_message.getSender() + ": " + String.join(" ", splitedMessage);
+						String text = "[Private] from " + recieved_message.getSender() + ": "
+								+ String.join(" ", splitedMessage);
 						String selfText = "[Private] to " + receiver + ": " + String.join(" ", splitedMessage);
-						System.out.println("<>" + recieved_message.getSender() + "<>");
-						System.out.println("<>" + receiver + "<>");
+
 						ChatMessage msg = new ChatMessage(recieved_message.getSender(), "", text);
 						ChatMessage selfMsg = new ChatMessage(recieved_message.getSender(), "", selfText);
-						
-						
+
 						sendPrivateMessage(msg, receiver);
-						sendPrivateMessage(selfMsg,recieved_message.getSender());
+						sendPrivateMessage(selfMsg, recieved_message.getSender());
 					}
-					
+					if (recieved_message.getCommand().equals("/leave")) {
+						ChatMessage broadcastMsg = new ChatMessage("", "",
+								"[Server] User " + recieved_message.getSender() + " left the server. Bye "
+										+ recieved_message.getSender() + "!");
+						broadcast(broadcastMsg);
+					}
+					if (recieved_message.getCommand().equals("/list")) {
+						ChatMessage selfMsg = new ChatMessage(recieved_message.getSender(), "", getList());
+						sendPrivateMessage(selfMsg, recieved_message.getSender());
+					}
+
 					/// COMMANDS
+				} else {
+					ChatMessage broadcastMsg = new ChatMessage(recieved_message.getSender(), "",
+							recieved_message.getSender() + ": " + recieved_message.getParameters());
+					broadcast(broadcastMsg);
 				}
-				
+
 			} while (true);
 
 		}

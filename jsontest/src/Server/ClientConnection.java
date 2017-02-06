@@ -22,6 +22,8 @@ public class ClientConnection {
 
 	private final String m_name;
 	private ObjectOutputStream m_out = null;
+	private serverGroup group;
+	
 
 	/*
 	 * private final InetAddress m_address; private final int m_port;
@@ -29,6 +31,10 @@ public class ClientConnection {
 	public ClientConnection(String name, ObjectOutputStream out) {
 		m_name = name;
 		m_out = out;
+		this.group = serverGroup.USER;
+	}
+	public void setGroup(serverGroup grp){
+		this.group = grp;
 	}
 
 	public void sendMessage(ChatMessage message) {
@@ -44,6 +50,9 @@ public class ClientConnection {
 
 	public boolean hasName(String testName) {
 		return testName.equals(m_name);
+	}
+	public String getName() {
+		return m_name;
 	}
 
 }
