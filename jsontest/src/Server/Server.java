@@ -128,6 +128,19 @@ public class Server {
 		}
 	}
 
+	public serverGroup getGroup(String name) {
+		ClientConnection c;
+		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
+			c = itr.next();
+			if (c.hasName(name)) {
+				return c.getGroup();
+			} else {
+				System.out.println("Error! Name: " + name + " not found.");
+			}
+		}
+		return serverGroup.USER;
+	}
+
 	public void broadcast(ChatMessage message) {
 		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
 			itr.next().sendMessage(message);
@@ -201,11 +214,11 @@ public class Server {
 					this.interrupt();
 					return;
 				}
-
 				System.out.println(recieved_message.getCommand());
 				if (recieved_message.getCommand() != null && recieved_message.getCommand().startsWith("/")) {
 					/// COMMANDS
 					if (recieved_message.getCommand().equals("/connect")) {
+						String welcomeMessage = "[Server] For help type /help ";
 						String[] splitedMessage = recieved_message.getParameters().split(" ");
 						String name = splitedMessage[0];
 						if (addClient(name, out)) {
@@ -220,6 +233,8 @@ public class Server {
 							ChatMessage broadcastMsg = new ChatMessage("", "",
 									"[Server] User " + recieved_message.getSender() + " joined the chat!");
 							broadcast(broadcastMsg);
+							ChatMessage privateMsg = new ChatMessage("", "",welcomeMessage);
+							sendPrivateMessage(privateMsg,recieved_message.getSender());
 						} else {
 							ChatMessage response = new ChatMessage("", "/disconnected", "");
 							try {
@@ -282,6 +297,99 @@ public class Server {
 							}
 						}
 
+					}
+					if (recieved_message.getCommand().equals("/kick")) {
+						String target = null;
+						String reason = null;
+						String[] parameters = recieved_message.getParameters().split("\\s+");
+						target = parameters[1];
+						parameters[1] = "";
+						reason = String.join(" ", parameters);
+						if (getGroup(recieved_message.getSender()) == serverGroup.ADMIN
+								|| getGroup(recieved_message.getSender()) == serverGroup.MODERATOR) {
+							// tell target he got kicked
+							// tell chat target got kicked
+							// kick(target);
+							ChatMessage broadcastMSG = new ChatMessage(recieved_message.getSender(), "",
+									"[Server] User " + target + " got kicked for " + reason);
+							broadcast(broadcastMSG);
+						} else {
+							// NO PERMISSION
+							ChatMessage msg = new ChatMessage(recieved_message.getSender(), "",
+									"[Server] You got no permission for that command...");
+							sendPrivateMessage(msg, recieved_message.getSender());
+						}
+
+					}
+					if (recieved_message.getCommand().equals("/help")) {
+						String[] split = recieved_message.getParameters().split("\\s+");
+						String parameter = String.join("", split);
+						String outPut = null;
+						String userHelp = "[Server] User Help \n" + "Commands: \n" + "		/tell \n"
+								+ "		/list \n" + "		/leave \n" + "		/login \n" + "\n"
+								+ "For more help about commands type: /help [command] ex /help tell \n"
+								+ "---------------------------------------------------------------- \n"
+								+ "To send broadcasts simply send messages in the chat without a '/'  \n"
+								+ "---------------------------------------------------------------- \n";
+						String adminHelp = "[Server] Admin Help \n" + "Commands: \n" + "		/kick \n"
+								+ "---------------------------------------------------------------- \n"
+								+ "For more help about commands type: /help [command] ex /help kick \n"
+								+ "---------------------------------------------------------------- \n";
+						String modHelp = "[Server] Mod Help \n" + "Commands: \n" + "		/kick \n"
+								+ "---------------------------------------------------------------- \n"
+								+ "For more help about commands type: /help [command] ex /help kick \n"
+								+ "---------------------------------------------------------------- \n ";
+						String _tell = "[Help] Usage: /tell [user] <message> \n" + "  - Sends a message to a user.";
+						String _list = "[Help] Usage: /list \n" + "  - Lists connected users.";
+						String _leave = "[Help] Usage: /leave \n" + "  - Leaves the chatroom.";
+						String _login = "[Help] Usage: /login [role] <password> \n"
+								+ "  - Logs in and gives priveledges. Roles: admin,moderator .";
+						String _help = "[Help] Usage: /help <command> \n"
+								+ "  - /help without parameters gives a list of commands and basic info. \n"
+								+ "  - /help <command> ex /help leave gives info about how to use a certain command.";
+						String _kick = "[Help] Usage: /kick [user] <reason> \n"
+								+ "  - Kicks user and broadcasts with given reason. \n" + " \n";
+						// ADMIN EXCLUSIVE HELP
+						if (getGroup(recieved_message.getSender()) == serverGroup.ADMIN) {
+							if (parameter.equals("")) {
+								outPut = userHelp + adminHelp;
+
+							} else {
+								if (parameter.equals("kick")) {
+									outPut = _kick;
+								}
+							}
+						} else if (getGroup(recieved_message.getSender()) == serverGroup.MODERATOR) {
+							if (parameter.equals("")) {
+								outPut = userHelp + modHelp;
+							} else {
+								if (parameter.equals("kick")) {
+									outPut = _kick;
+								}
+							}
+						} else {
+							if (parameter.equals("")) {
+								outPut = userHelp;
+							} else {
+								if (parameter.equals("tell")) {
+									outPut = _tell;
+								}
+								if (parameter.equals("list")) {
+									outPut = _list;
+								}
+								if (parameter.equals("leave")) {
+									outPut = _leave;
+								}
+								if (parameter.equals("login")) {
+									outPut = _login;
+								}
+								if (parameter.equals("kick")) {
+									outPut = "[Server] You dont have permission for that command...";
+								}
+							}
+						}
+						ChatMessage msg = new ChatMessage(recieved_message.getSender(), "", outPut);
+						sendPrivateMessage(msg, recieved_message.getSender());
 					}
 
 					/// COMMANDS
