@@ -32,6 +32,8 @@ public class ServerConnection {
 	private int m_serverPort = -1;
 	private ObjectOutputStream oStream = null;
 	private ObjectInputStream iStream = null;
+	boolean m_connected = false;
+	private String m_name = null;
 
 	public ServerConnection(String hostName, int port) {
 		m_serverPort = port;
@@ -48,6 +50,7 @@ public class ServerConnection {
 		}
 
 	}
+
 	public boolean handshake(String name) {
 		// TODO:
 		// * marshal connection message containing user name
@@ -56,7 +59,7 @@ public class ServerConnection {
 		// * unmarshal response message to determine whether connection was
 		// successful
 		// * return false if connection failed (e.g., if user name was taken)
-
+		m_name = name;
 		ChatMessage msg = new ChatMessage(name, "/connect", name);
 		ChatMessage response = null;
 		try {
@@ -92,6 +95,7 @@ public class ServerConnection {
 		if (response.getCommand().equals("/connected")) {
 			System.out.println(
 					"Connection established to server at " + m_socket.getInetAddress() + ":" + m_socket.getPort());
+			m_connected = true;
 			return true;
 		} else
 			return true;
@@ -122,6 +126,9 @@ public class ServerConnection {
 
 		if (command.startsWith("/")) {
 			// Its a command
+			if (command.equals("/kick")){
+				disconnect();
+			}
 		} else {
 			outPut = message;
 			System.out.println(message);
@@ -129,7 +136,18 @@ public class ServerConnection {
 		// Update to return message contents
 		return outPut;
 	}
-
+	public void disconnect(){
+		m_connected = false;
+		try {
+			oStream.close();
+			iStream.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+	}
 	public void sendChatMessage(String message) {
 		ChatMessage msg = null;
 		int emptyEntries = 1;
@@ -142,22 +160,26 @@ public class ServerConnection {
 			splited[1] = "";
 		}
 		String outPut = String.join(" ", splited);
-		System.out.println("<>" +outPut + "<>");
-		if (splited.length > 1){
-			
-		}
-		
-		
-		msg = new ChatMessage(sender, command, outPut);
+		System.out.println("<>" + outPut + "<>");
+		if (splited.length > 1) {
 
-		try {
-			oStream.writeObject(msg);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		}
+
+		if (command.equals("/connect")) {
+			if (!m_connected) {
+				handshake(m_name);
+			}
+		} else {
+			msg = new ChatMessage(sender, command, outPut);
+
+			try {
+				oStream.writeObject(msg);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 
 	}
 
 }
-
