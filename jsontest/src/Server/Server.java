@@ -25,6 +25,8 @@ public class Server {
 
 	private ArrayList<ClientConnection> m_connectedClients = new ArrayList<ClientConnection>();
 	private ServerSocket m_socket;
+	private String adminPassword = "password";
+	private String modPassword = "password";
 
 	public static void main(String[] args) {
 		if (args.length < 1) {
@@ -102,6 +104,30 @@ public class Server {
 		}
 	}
 
+	public void promoteModerator(String name) {
+		ClientConnection c;
+		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
+			c = itr.next();
+			if (c.hasName(name)) {
+				c.setGroup(serverGroup.MODERATOR);
+			} else {
+				System.out.println("Error! Name: " + name + " not found.");
+			}
+		}
+	}
+
+	public void promoteAdmin(String name) {
+		ClientConnection c;
+		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
+			c = itr.next();
+			if (c.hasName(name)) {
+				c.setGroup(serverGroup.ADMIN);
+			} else {
+				System.out.println("Error! Name: " + name + " not found.");
+			}
+		}
+	}
+
 	public void broadcast(ChatMessage message) {
 		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
 			itr.next().sendMessage(message);
@@ -112,7 +138,7 @@ public class Server {
 		String returnValue = null;
 		String list = "Connected clients: ";
 		for (int i = 0; i < m_connectedClients.size(); i++) {
-			list += m_connectedClients.get(i).getName();
+			list += m_connectedClients.get(i).getGroupName() + " " + m_connectedClients.get(i).getName();
 			if (i <= m_connectedClients.size() - 2) {
 				list += ", ";
 			}
@@ -182,7 +208,7 @@ public class Server {
 					if (recieved_message.getCommand().equals("/connect")) {
 						String[] splitedMessage = recieved_message.getParameters().split(" ");
 						String name = splitedMessage[0];
-						if (addClient(name, out)){
+						if (addClient(name, out)) {
 							System.out.println(name + " connected.");
 							ChatMessage response = new ChatMessage("", "/connected", "");
 							try {
@@ -194,7 +220,7 @@ public class Server {
 							ChatMessage broadcastMsg = new ChatMessage("", "",
 									"[Server] User " + recieved_message.getSender() + " joined the chat!");
 							broadcast(broadcastMsg);
-						}else{
+						} else {
 							ChatMessage response = new ChatMessage("", "/disconnected", "");
 							try {
 								out.writeObject(response);
@@ -203,8 +229,7 @@ public class Server {
 								e.printStackTrace();
 							}
 						}
-						
-						
+
 					}
 					if (recieved_message.getCommand().equals("/test")) {
 						System.out.println("Test command works!");
@@ -235,6 +260,28 @@ public class Server {
 					if (recieved_message.getCommand().equals("/list")) {
 						ChatMessage selfMsg = new ChatMessage(recieved_message.getSender(), "", getList());
 						sendPrivateMessage(selfMsg, recieved_message.getSender());
+					}
+					if (recieved_message.getCommand().equals("/login")) {
+						System.out.println(recieved_message.getParameters());
+						String[] parameters = recieved_message.getParameters().split(" ");
+						System.out.println(parameters[1] + " : " + parameters[2]);
+						if (parameters[2].equals("admin")) {
+							if (parameters[3].equals(adminPassword)) {
+								promoteAdmin(recieved_message.getSender());
+								ChatMessage selfMsg = new ChatMessage(recieved_message.getSender(), "",
+										"[Server] You have been promoted to Administrator.");
+								sendPrivateMessage(selfMsg, recieved_message.getSender());
+							}
+						}
+						if (parameters[2].equals("moderator")) {
+							if (parameters[3].equals(modPassword)) {
+								promoteModerator(recieved_message.getSender());
+								ChatMessage selfMsg = new ChatMessage(recieved_message.getSender(), "",
+										"[Server] You have been promoted to Moderator.");
+								sendPrivateMessage(selfMsg, recieved_message.getSender());
+							}
+						}
+
 					}
 
 					/// COMMANDS

@@ -51,6 +51,20 @@ public class ClientConnection {
 	public boolean hasName(String testName) {
 		return testName.equals(m_name);
 	}
+	public serverGroup getGroup(){
+		return group;
+	}
+	public String getGroupName(){
+		switch (group){
+			case USER:
+				return "[U]";
+			case ADMIN:
+				return "[Admin]";
+			case MODERATOR:
+				return "[Mod]";
+		}
+		return "NULL";
+	}
 	public String getName() {
 		return m_name;
 	}
