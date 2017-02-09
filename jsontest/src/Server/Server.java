@@ -152,9 +152,9 @@ public class Server {
 		for (Iterator<ClientConnection> itr = m_connectedClients.iterator(); itr.hasNext();) {
 			c = itr.next();
 			if (c.hasName(name)) {
-				m_connectedClients.remove(c);
-				ChatMessage kickMessage = new ChatMessage("", "/kick", "");
+				ChatMessage kickMessage = new ChatMessage("", "/kick", name);
 				sendPrivateMessage(kickMessage, name);
+				m_connectedClients.remove(c);
 				return true; // successful
 			}
 		}
@@ -282,7 +282,10 @@ public class Server {
 						ChatMessage broadcastMsg = new ChatMessage("", "",
 								"[Server] User " + recieved_message.getSender() + " left the server. Bye "
 										+ recieved_message.getSender() + "!");
+						ChatMessage privMsg = new ChatMessage("", "",
+								"[Server] To reconnect use /connect! ");
 						broadcast(broadcastMsg);
+						sendPrivateMessage(privMsg,recieved_message.getSender());
 						kickUser(recieved_message.getSender());
 						this.interrupt();
 						break;

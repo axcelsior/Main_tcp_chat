@@ -8,6 +8,7 @@ public class Client implements ActionListener {
 	private String m_name = null;
 	private final ChatGUI m_GUI;
 	private ServerConnection m_connection = null;
+	private boolean connected = false;
 
 	public static void main(String[] args) {
 		if (args.length < 3) {
@@ -45,7 +46,9 @@ public class Client implements ActionListener {
 		// Use the code below once m_connection.receiveChatMessage() has been
 		// implemented properly.
 		do {
-			m_GUI.displayMessage(m_connection.receiveChatMessage());
+			if (m_connection.isConnected()){
+				m_GUI.displayMessage(m_connection.receiveChatMessage());
+			}
 		} while (true);
 	}
 
@@ -56,7 +59,12 @@ public class Client implements ActionListener {
 		// Since the only possible event is a carriage return in the text input
 		// field,
 		// the text in the chat input field can now be sent to the server.
-		m_connection.sendChatMessage(m_name + " " + m_GUI.getInput());
+		if (m_connection.isConnected()) {
+			m_connection.sendChatMessage(m_name + " " + m_GUI.getInput());
+		} else if (m_GUI.getInput().equals("/connect")) {
+			m_connection.handshake(m_name);
+		}
+
 		m_GUI.clearInput();
 	}
 }
